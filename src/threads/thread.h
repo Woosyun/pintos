@@ -100,7 +100,13 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+/* ---- project 1 start ----- */
+    int64_t wakeup_tick;
   };
+
+void thread_sleep(int64_t);
+void thread_wakeup(int64_t);
+/* ---- project 1 end ----- */
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

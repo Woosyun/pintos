@@ -24,6 +24,10 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 
+/* ----- project 1 start ----- */
+static struct list sleep_list;
+/* ----- project 1 end ------- */
+
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
@@ -98,6 +102,10 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+
+	/* ----- project 1 start ------ */
+	list_init(&sleep_list);
+	/* ---- project 1 end -------- */
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -321,6 +329,55 @@ thread_yield (void)
   schedule ();
   intr_set_level (old_level);
 }
+
+/* ---- project 1 start ---- */
+void
+thread_sleep (int64_t ticks)
+{
+	struct thread *cur;
+	enum intr_level old_level;
+
+	ASSERT (ticks >= 0);
+	ASSERT (intr_get_level() == INTR_ON);
+	cur	= thread_current();
+	ASSERT (cur != idle_thread);
+
+	old_level = intr_disable(); // interrupt off
+
+	cur->wakeup_tick = ticks;
+	cur->status = THREAD_BLOCKED;
+	list_push_back(&sleep_list, &cur->elem);
+
+	schedule();
+
+	intr_set_level(old_level); // interrupt on
+}
+void
+thread_wakeup (int64_t ticks)
+{
+	struct thread *temp;
+	struct list_elem *e;
+
+	ASSERT (ticks >= 0);
+	ASSERT (intr_get_level() == INTR_OFF);
+
+  e	= list_begin(&sleep_list);
+	
+	while (e != list_end (&sleep_list))
+	{
+		temp = list_entry(e, struct thread, elem);
+		if (temp->wakeup_tick <= ticks)
+		{
+			e = list_remove(&temp->elem);
+			thread_unblock(temp);
+		}
+		else
+		{
+			e = list_next(e);
+		}
+	}
+}
+/* ---- project 1 end ----- */
 
 /* Invoke function 'func' on all threads, passing along 'aux'.
    This function must be called with interrupts off. */
