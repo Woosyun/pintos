@@ -334,19 +334,19 @@ thread_yield (void)
 void
 thread_sleep (int64_t ticks)
 {
-	struct thread *cur;
+	struct thread *t;
 	enum intr_level old_level;
 
 	ASSERT (ticks >= 0);
 	ASSERT (intr_get_level() == INTR_ON);
-	cur	= thread_current();
-	ASSERT (cur != idle_thread);
+	t	= thread_current();
+	ASSERT (t != idle_thread);
 
 	old_level = intr_disable(); // interrupt off
 
-	cur->wakeup_tick = ticks;
-	cur->status = THREAD_BLOCKED;
-	list_push_back(&sleep_list, &cur->elem);
+	t->wakeup_tick = ticks;
+	t->status = THREAD_BLOCKED;
+	list_push_back(&sleep_list, &t->elem);
 
 	schedule();
 
@@ -355,27 +355,18 @@ thread_sleep (int64_t ticks)
 void
 thread_wakeup (int64_t ticks)
 {
-	struct thread *temp;
+	struct thread *t;
 	struct list_elem *e;
 
-	ASSERT (ticks >= 0);
-	ASSERT (intr_get_level() == INTR_OFF);
-
-  e	= list_begin(&sleep_list);
-	
-	while (e != list_end (&sleep_list))
-	{
-		temp = list_entry(e, struct thread, elem);
-		if (temp->wakeup_tick <= ticks)
-		{
-			e = list_remove(&temp->elem);
-			thread_unblock(temp);
-		}
-		else
-		{
-			e = list_next(e);
-		}
-	}
+  for (e=list_begin(&sleep_list); e!=list_end(&sleep_list); e=list_next(e))
+  {
+    t = list_entry(e, struct thread, elem);
+    if (t -> wakeup_tick <= ticks)
+    {
+      list_remove(&t->elem)
+      thread_unblock(t);
+    }
+  }
 }
 /* ---- project 1 end ----- */
 
