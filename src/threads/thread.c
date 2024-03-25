@@ -345,7 +345,7 @@ thread_sleep (int64_t ticks)
 
 	t->wakeup_tick = ticks;
 	t->status = THREAD_BLOCKED;
-	list_push_back(&sleep_list, &t->elem);
+	list_push_back(&sleep_list, &(t->elem));
 
 	schedule();
 
@@ -362,7 +362,7 @@ thread_wakeup (int64_t ticks)
     t = list_entry(e, struct thread, elem);
     if (t -> wakeup_tick <= ticks)
     {
-      e = list_remove(&t->elem);
+      e = list_remove(e);
       thread_unblock(t);
     }
 		else
