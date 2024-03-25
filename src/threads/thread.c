@@ -357,14 +357,18 @@ thread_wakeup (int64_t ticks)
 	struct thread *t;
 	struct list_elem *e;
 
-  for (e = list_begin(&sleep_list); e != list_end(&sleep_list); e = list_next(e))
+  for (e = list_begin(&sleep_list); e != list_end(&sleep_list);)
   {
     t = list_entry(e, struct thread, elem);
     if (t -> wakeup_tick <= ticks)
     {
-      list_remove(e);
+      e = list_remove(&t->elem);
       thread_unblock(t);
     }
+		else
+		{
+			e = list_next(e);
+		}
   }
 }
 /* ---- project 1 end ----- */
