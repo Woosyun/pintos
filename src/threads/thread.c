@@ -76,8 +76,8 @@ void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
 /* --- project 1.2 start --- */
-bool is_priority_higher (struct list_elem*, struct list_elem*, void*);
-void thread_preemption();
+//bool is_priority_higher (struct list_elem*, struct list_elem*, void*);
+//void thread_preemption();
 /* --- project 1.2 end --- */
 
 /* Initializes the threading system by transforming the code
@@ -262,7 +262,7 @@ thread_unblock (struct thread *t)
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
 	/* --- project 1.2 start --- */
-	list_insert_ordered (&ready_list, &t->elem, is_priority_higher, 0);	
+	list_insert_ordered (&ready_list, &t->elem, is_priority_higher, NULL);	
 	/* --- project 1.2 end --- */
   t->status = THREAD_READY;
   intr_set_level (old_level);
@@ -358,7 +358,7 @@ thread_yield (void)
   old_level = intr_disable ();
   if (cur != idle_thread) 
 	/* --- project 1.2 start --- */
-	list_insert_ordered(&ready_list, &cur->elem, is_priority_higher, 0);
+	list_insert_ordered(&ready_list, &cur->elem, is_priority_higher, NULL);
 	/* --- project 1.2 end --- */
   cur->status = THREAD_READY;
   schedule ();
