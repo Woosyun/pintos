@@ -70,7 +70,7 @@ sema_down (struct semaphore *sema)
     {
       //list_push_back (&sema->waiters, &thread_current ()->elem);
 			/* --- project 1.2 start --- */
-			list_insert_ordered (&sema->waiters, &thread_current ()->elem, is_priority_higher,  NULL);
+			list_insert_ordered (&sema->waiters, &thread_current ()->elem, thread_cmp_priority,  NULL);
 			/* --- project 1.2 end --- */
       thread_block ();
     }

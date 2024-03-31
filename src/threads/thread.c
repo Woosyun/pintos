@@ -75,11 +75,6 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
-/* --- project 1.2 start --- */
-//bool is_priority_higher (struct list_elem*, struct list_elem*, void*);
-//void thread_preemption();
-/* --- project 1.2 end --- */
-
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -262,14 +257,14 @@ thread_unblock (struct thread *t)
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
 	/* --- project 1.2 start --- */
-	list_insert_ordered (&ready_list, &t->elem, is_priority_higher, NULL);	
+	list_insert_ordered (&ready_list, &t->elem, thread_cmp_priority, NULL);	
 	/* --- project 1.2 end --- */
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
 /* --- project 1.2 start --- */
 bool 
-is_priority_higher(struct list_elem *le, struct list_elem *ri, void *aux UNUSED)
+thread_cmp_priority(struct list_elem *le, struct list_elem *ri, void *aux UNUSED)
 {
 	struct thread *new_thread_ptr = list_entry (le, struct thread, elem);
 	struct thread *cur_thread_ptr = list_entry (ri, struct thread, elem);
@@ -358,7 +353,7 @@ thread_yield (void)
   old_level = intr_disable ();
   if (cur != idle_thread) 
 	/* --- project 1.2 start --- */
-	list_insert_ordered(&ready_list, &cur->elem, is_priority_higher, NULL);
+	list_insert_ordered(&ready_list, &cur->elem, thread_cmp_priority, NULL);
 	/* --- project 1.2 end --- */
   cur->status = THREAD_READY;
   schedule ();

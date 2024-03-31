@@ -111,7 +111,7 @@ void thread_sleep (int64_t);
 void thread_wakeup (int64_t);
 /* ---- project 1 end ----- */
 /* --- project 1.2 start --- */
-bool is_priority_higher (struct list_elem*, struct list_elem*, void*);
+bool thread_cmp_priority (struct list_elem*, struct list_elem*, void*);
 void thread_preemption (void);
 /* --- project 1.2 end --- */
 
