@@ -70,7 +70,7 @@ sema_down (struct semaphore *sema)
     {
       //list_push_back (&sema->waiters, &thread_current ()->elem);
 			/* --- project 1.2 start --- */
-			list_insert_ordered (&sema->waiters, &thread_current ()->elem, thread_cmp_priority,  NULL);
+			list_insert_ordered (&sema->waiters, &(thread_current ()->elem), thread_cmp_priority,  NULL);
 			/* --- project 1.2 end --- */
       thread_block ();
     }
@@ -121,7 +121,7 @@ sema_up (struct semaphore *sema)
                                 struct thread, elem));
   sema->value++;
 	/* --- project 1.2 start --- */
-	thread_preemption();
+	//thread_preemption();
 	/* --- project 1.2 end --- */
   intr_set_level (old_level);
 }
@@ -290,6 +290,26 @@ cond_init (struct condition *cond)
    interrupt handler.  This function may be called with
    interrupts disabled, but interrupts will be turned back on if
    we need to sleep. */
+/* --- project 1.2 start --- */
+bool
+sema_cmp_priority (struct list_elem *e1, struct list_elem *e2, void *aux UNUSED)
+{
+	struct semaphore_elem *sema_e1 = list_entry(e1, struct semaphore_elem, elem);
+	struct semaphore_elem *sema_e2 = list_entry(e2, struct semaphore_elem, elem);
+
+	struct list *waiters_ptr1 = &(sema_e1->semaphore.waiters);
+	struct list *waiters_ptr2 = &(sema_e2->semaphore.waiters);
+	
+	struct list_elem *thread_e1 = list_begin (waiters_ptr1);
+	struct list_elem *thread_e2 = list_begin (waiters_ptr2);
+
+	struct thread *t1 = list_entry (thread_e1, struct thread, elem);
+	struct thread *t2 = list_entry (thread_e2, struct thread, elem);
+
+	return t1->priority > t2->priority;
+}
+/* --- project 1.2 end --- */
+
 void
 cond_wait (struct condition *cond, struct lock *lock) 
 {
@@ -301,7 +321,10 @@ cond_wait (struct condition *cond, struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
   
   sema_init (&waiter.semaphore, 0);
-  list_push_back (&cond->waiters, &waiter.elem);
+  //list_push_back (&cond->waiters, &waiter.elem);
+	/* --- proejct 1.2 start --- */
+	list_insert_ordered (&cond->waiters, &(waiter.elem), sema_cmp_priority, NULL);
+	/* --- project 1.2 end --- */
   lock_release (lock);
   sema_down (&waiter.semaphore);
   lock_acquire (lock);
