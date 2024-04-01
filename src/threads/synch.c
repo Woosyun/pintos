@@ -117,11 +117,16 @@ sema_up (struct semaphore *sema)
 
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters)) 
+	{
+		/* --- project 1.2 start --- */
+		list_sort (&sema->waiters, thread_cmp_priority, 0);
+		/* --- project 1.2 end --- */
     thread_unblock (list_entry (list_pop_front (&sema->waiters),
                                 struct thread, elem));
+	}
   sema->value++;
 	/* --- project 1.2 start --- */
-	//thread_preemption();
+	thread_preemption();
 	/* --- project 1.2 end --- */
   intr_set_level (old_level);
 }
@@ -321,9 +326,9 @@ cond_wait (struct condition *cond, struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
   
   sema_init (&waiter.semaphore, 0);
-  //list_push_back (&cond->waiters, &waiter.elem);
-	/* --- proejct 1.2 start --- */
-	list_insert_ordered (&cond->waiters, &(waiter.elem), sema_cmp_priority, NULL);
+  list_push_back (&cond->waiters, &waiter.elem);
+	/* --- project 1.2 start --- */
+	//list_insert_ordered (&cond->waiters, &(waiter.elem), sema_cmp_priority, NULL);
 	/* --- project 1.2 end --- */
   lock_release (lock);
   sema_down (&waiter.semaphore);
@@ -346,8 +351,13 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (lock_held_by_current_thread (lock));
 
   if (!list_empty (&cond->waiters)) 
+	{
+		/* --- project 1.2 start --- */
+		list_sort (&cond->waiters, sema_cmp_priority, 0);
+		/* --- project 1.2 end --- */
     sema_up (&list_entry (list_pop_front (&cond->waiters),
                           struct semaphore_elem, elem)->semaphore);
+	}
 }
 
 /* Wakes up all threads, if any, waiting on COND (protected by
