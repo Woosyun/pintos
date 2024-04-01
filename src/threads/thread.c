@@ -103,9 +103,7 @@ thread_init (void)
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
 
-	/* ----- project 1 start ------ */
-	list_init(&sleep_list);
-	/* ---- project 1 end -------- */
+	list_init(&sleep_list);//project 1
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -216,9 +214,7 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-	/* --- project 1.2 start --- */
-	thread_preemption();
-	/* --- project 1.2 end --- */
+	thread_preemption();//project 1.2
 
   return tid;
 }
@@ -256,15 +252,13 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-	/* --- project 1.2 start --- */
-	list_insert_ordered (&ready_list, &t->elem, thread_cmp_priority, NULL);	
-	/* --- project 1.2 end --- */
+	list_insert_ordered (&ready_list, &t->elem, thread_cmp_priority, NULL);//project 1.2
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
 /* --- project 1.2 start --- */
 bool 
-thread_cmp_priority(struct list_elem *le, struct list_elem *ri, void *aux UNUSED)
+thread_cmp_priority(const struct list_elem *le, const struct list_elem *ri, void *aux UNUSED)
 {
 	struct thread *new_thread_ptr = list_entry (le, struct thread, elem);
 	struct thread *cur_thread_ptr = list_entry (ri, struct thread, elem);
@@ -352,9 +346,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-	/* --- project 1.2 start --- */
-	list_insert_ordered(&ready_list, &cur->elem, thread_cmp_priority, NULL);
-	/* --- project 1.2 end --- */
+		list_insert_ordered(&ready_list, &cur->elem, thread_cmp_priority, NULL);//project 1.2
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -426,6 +418,8 @@ thread_set_priority (int new_priority)
 {
   thread_current ()->priority = new_priority;
 	/* --- project 1.2 start --- */
+	thread_current ()->init_priority = new_priority;
+	thread_update_priority();
 	thread_preemption();
 	/* --- project 1.2 end --- */
 }
@@ -554,6 +548,11 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
+	/* --- project 1.2 start --- */
+	t->init_priority = priority;
+	t->lock_ptr = NULL;
+	list_init (&t->donator_li);
+	/* --- project 1.2 end --- */
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

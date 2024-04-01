@@ -32,6 +32,13 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
+/* --- project 1.2 start --- */
+bool sema_cmp_priority (const struct list_elem*, const struct list_elem*, void*);
+bool donator_cmp_priority (const struct list_elem*, const struct list_elem*, void*);
+void donate_priority (struct thread*, int);
+void lock_remove_thread (struct lock*);
+/* --- project 1.2 end --- */
+
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
    manipulating it:
@@ -69,9 +76,7 @@ sema_down (struct semaphore *sema)
   while (sema->value == 0) 
     {
       //list_push_back (&sema->waiters, &thread_current ()->elem);
-			/* --- project 1.2 start --- */
-			list_insert_ordered (&sema->waiters, &(thread_current ()->elem), thread_cmp_priority,  NULL);
-			/* --- project 1.2 end --- */
+			list_insert_ordered (&sema->waiters, &thread_current ()->elem, thread_cmp_priority,  NULL);//project 1.2
       thread_block ();
     }
   sema->value--;
@@ -118,16 +123,12 @@ sema_up (struct semaphore *sema)
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters)) 
 	{
-		/* --- project 1.2 start --- */
-		list_sort (&sema->waiters, thread_cmp_priority, 0);
-		/* --- project 1.2 end --- */
+		list_sort (&sema->waiters, thread_cmp_priority, 0);//project 1.2
     thread_unblock (list_entry (list_pop_front (&sema->waiters),
                                 struct thread, elem));
 	}
   sema->value++;
-	/* --- project 1.2 start --- */
-	thread_preemption();
-	/* --- project 1.2 end --- */
+	thread_preemption();//project 1.2
   intr_set_level (old_level);
 }
 
@@ -207,9 +208,56 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
+	/* --- project 1.2 start --- */
+	struct thread *cur = thread_current ();
+	if (lock->holder)
+	{
+		cur->lock_ptr = lock;
+		//add current thread ptr to locked thread.donator_li
+		list_insert_ordered (&lock->holder->donator_li, &cur->donator_elem, donator_cmp_priority, NULL);
+		donate_priority(cur, 8);
+	}
+	/* --- project 1.2 end --- */
+
   sema_down (&lock->semaphore);
+	cur->lock_ptr = NULL;//project 1.2 - no more waiting fo lock
   lock->holder = thread_current ();
 }
+/* --- project 1.2 start --- */
+bool 
+donator_cmp_priority (const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED)
+{
+	struct thread *t1 = list_entry (e1, struct thread, donator_elem);
+	struct thread *t2 = list_entry (e2, struct thread, donator_elem);
+
+	return t1->priority > t2->priority;
+}
+void
+donate_priority (struct thread *h, int depth)
+{
+	if (depth>0 && h->lock_ptr != NULL)
+	{
+		struct thread *l = h->lock_ptr->holder;
+		l->priority = l->priority < h->priority ? h->priority : l->priority;
+		//thread_update_priority ();
+		donate_priority (l, depth-1);
+	}
+}
+void
+thread_update_priority (void)
+{
+	struct thread *l = thread_current();
+	struct list_elem *e;
+	struct thread* t;
+
+	l->priority = l->init_priority;
+	for (e=list_begin (&l->donator_li); e!=list_end (&l->donator_li); e=list_next(e))
+	{
+		t = list_entry (e, struct thread, donator_elem);	
+		l->priority = l->priority < t->priority ? t->priority : l->priority;
+	}
+}
+/* --- project 1.2 end --- */
 
 /* Tries to acquires LOCK and returns true if successful or false
    on failure.  The lock must not already be held by the current
@@ -236,11 +284,37 @@ lock_try_acquire (struct lock *lock)
    An interrupt handler cannot acquire a lock, so it does not
    make sense to try to release a lock within an interrupt
    handler. */
+/* --- project 1.2 start --- */
+void
+lock_remove_thread (struct lock *lock)
+{
+	struct list_elem *e;
+	struct thread *target;
+	for (e=list_begin (&lock->holder->donator_li); e!=list_end (&lock->holder->donator_li);)
+	{
+		target = list_entry (e, struct thread, donator_elem);
+		if (target->lock_ptr == lock)
+		{
+			e = list_remove (e);
+		}
+		else
+		{
+			e = list_next(e);
+		}
+	}
+}
+/* --- project 1.2 end --- */
+
 void
 lock_release (struct lock *lock) 
 {
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
+
+	/* --- project 1.2 start --- */
+	lock_remove_thread (lock);
+	thread_update_priority ();
+	/* --- project 1.2 end --- */
 
   lock->holder = NULL;
   sema_up (&lock->semaphore);
@@ -297,7 +371,7 @@ cond_init (struct condition *cond)
    we need to sleep. */
 /* --- project 1.2 start --- */
 bool
-sema_cmp_priority (struct list_elem *e1, struct list_elem *e2, void *aux UNUSED)
+sema_cmp_priority (const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED)
 {
 	struct semaphore_elem *sema_e1 = list_entry(e1, struct semaphore_elem, elem);
 	struct semaphore_elem *sema_e2 = list_entry(e2, struct semaphore_elem, elem);
@@ -308,10 +382,7 @@ sema_cmp_priority (struct list_elem *e1, struct list_elem *e2, void *aux UNUSED)
 	struct list_elem *thread_e1 = list_begin (waiters_ptr1);
 	struct list_elem *thread_e2 = list_begin (waiters_ptr2);
 
-	struct thread *t1 = list_entry (thread_e1, struct thread, elem);
-	struct thread *t2 = list_entry (thread_e2, struct thread, elem);
-
-	return t1->priority > t2->priority;
+	return thread_cmp_priority (thread_e1, thread_e2, NULL);
 }
 /* --- project 1.2 end --- */
 
@@ -326,10 +397,8 @@ cond_wait (struct condition *cond, struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
   
   sema_init (&waiter.semaphore, 0);
-  list_push_back (&cond->waiters, &waiter.elem);
-	/* --- project 1.2 start --- */
-	//list_insert_ordered (&cond->waiters, &(waiter.elem), sema_cmp_priority, NULL);
-	/* --- project 1.2 end --- */
+  //list_push_back (&cond->waiters, &waiter.elem);
+	list_insert_ordered (&cond->waiters, &(waiter.elem), sema_cmp_priority, NULL);//project 1.2
   lock_release (lock);
   sema_down (&waiter.semaphore);
   lock_acquire (lock);
@@ -352,9 +421,7 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
 
   if (!list_empty (&cond->waiters)) 
 	{
-		/* --- project 1.2 start --- */
-		list_sort (&cond->waiters, sema_cmp_priority, 0);
-		/* --- project 1.2 end --- */
+		list_sort (&cond->waiters, sema_cmp_priority, 0);//project 1.2
     sema_up (&list_entry (list_pop_front (&cond->waiters),
                           struct semaphore_elem, elem)->semaphore);
 	}

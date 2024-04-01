@@ -4,6 +4,8 @@
 #include <list.h>
 #include <stdbool.h>
 
+void thread_update_priority (void);//project 1.2
+
 /* A counting semaphore. */
 struct semaphore 
   {
