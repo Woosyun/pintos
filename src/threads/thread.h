@@ -100,19 +100,27 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
+    int64_t wakeup_tick;// project 1
+
     /* --- project 1.2 start --- */
     int init_priority;
     struct lock *lock_ptr;
     struct list donator_li;
     struct list_elem donator_elem;
     /* --- project 1.2 end --- */
-/* ---- project 1 start ----- */
-    int64_t wakeup_tick;
+
+    /* --- project 1.3 start --- */
+    int nice;
+    int recent_cpu;
+    /* --- project 1.3 end --- */
   };
 
+/* ---- project 1 start ----- */
 void thread_sleep (int64_t);
 void thread_wakeup (int64_t);
 /* ---- project 1 end ----- */
+
 /* --- project 1.2 start --- */
 bool thread_cmp_priority (const struct list_elem*, const struct list_elem*, void*);
 void thread_preemption (void);

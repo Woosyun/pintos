@@ -450,7 +450,8 @@ thread_get_nice (void)
 int
 thread_get_load_avg (void) 
 {
-  /* Not yet implemented. */
+	// load_avg = (59/60)*load_avg + (1/60)*ready_threads
+	// return 100 *load_avg
   return 0;
 }
 
@@ -458,7 +459,8 @@ thread_get_load_avg (void)
 int
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
+	// recent_cpu = (2*load_avg)/(2*load_avg+1)*recent_cpu + nice
+	// return 100 * recent_cpu
   return 0;
 }
 

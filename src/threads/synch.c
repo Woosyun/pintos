@@ -34,9 +34,8 @@
 
 /* --- project 1.2 start --- */
 bool sema_cmp_priority (const struct list_elem*, const struct list_elem*, void*);
-bool donator_cmp_priority (const struct list_elem*, const struct list_elem*, void*);
 void donate_priority (struct thread*, int);
-void lock_remove_thread (struct lock*);
+void lock_remove_threads (struct lock*);
 /* --- project 1.2 end --- */
 
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
@@ -75,7 +74,6 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
-      //list_push_back (&sema->waiters, &thread_current ()->elem);
 			list_insert_ordered (&sema->waiters, &thread_current ()->elem, thread_cmp_priority,  NULL);//project 1.2
       thread_block ();
     }
@@ -213,25 +211,16 @@ lock_acquire (struct lock *lock)
 	if (lock->holder)
 	{
 		cur->lock_ptr = lock;
-		//add current thread ptr to locked thread.donator_li
-		list_insert_ordered (&lock->holder->donator_li, &cur->donator_elem, donator_cmp_priority, NULL);
+		list_push_back (&lock->holder->donator_li, &cur->donator_elem);
 		donate_priority(cur, 8);
 	}
 	/* --- project 1.2 end --- */
 
   sema_down (&lock->semaphore);
-	cur->lock_ptr = NULL;//project 1.2 - no more waiting fo lock
+	cur->lock_ptr = NULL;//project 1.2
   lock->holder = thread_current ();
 }
 /* --- project 1.2 start --- */
-bool 
-donator_cmp_priority (const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED)
-{
-	struct thread *t1 = list_entry (e1, struct thread, donator_elem);
-	struct thread *t2 = list_entry (e2, struct thread, donator_elem);
-
-	return t1->priority > t2->priority;
-}
 void
 donate_priority (struct thread *h, int depth)
 {
@@ -239,7 +228,6 @@ donate_priority (struct thread *h, int depth)
 	{
 		struct thread *l = h->lock_ptr->holder;
 		l->priority = l->priority < h->priority ? h->priority : l->priority;
-		//thread_update_priority ();
 		donate_priority (l, depth-1);
 	}
 }
@@ -286,7 +274,7 @@ lock_try_acquire (struct lock *lock)
    handler. */
 /* --- project 1.2 start --- */
 void
-lock_remove_thread (struct lock *lock)
+lock_remove_threads (struct lock *lock)
 {
 	struct list_elem *e;
 	struct thread *target;
@@ -312,7 +300,7 @@ lock_release (struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
 
 	/* --- project 1.2 start --- */
-	lock_remove_thread (lock);
+	lock_remove_threads (lock);
 	thread_update_priority ();
 	/* --- project 1.2 end --- */
 
