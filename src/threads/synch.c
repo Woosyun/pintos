@@ -205,10 +205,10 @@ lock_acquire (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
-
+	
 	/* --- project 1.2 start --- */
 	struct thread *cur = thread_current ();
-	if (lock->holder)
+	if (!thread_mlfqs && lock->holder)//project 1.3
 	{
 		cur->lock_ptr = lock;
 		list_push_back (&lock->holder->donator_li, &cur->donator_elem);
@@ -300,8 +300,11 @@ lock_release (struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
 
 	/* --- project 1.2 start --- */
-	lock_remove_threads (lock);
-	thread_update_priority ();
+	if (!thread_mlfqs)
+	{
+		lock_remove_threads (lock);
+		thread_update_priority ();
+	}
 	/* --- project 1.2 end --- */
 
   lock->holder = NULL;

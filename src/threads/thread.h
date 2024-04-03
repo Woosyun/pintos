@@ -126,6 +126,11 @@ bool thread_cmp_priority (const struct list_elem*, const struct list_elem*, void
 void thread_preemption (void);
 /* --- project 1.2 end --- */
 
+/* --- project 1.3 start --- */
+void mlfqs_per_tick (void);
+void mlfqs_per_4_ticks (void);
+void mlfqs_per_sec (void);
+/* --- project 1.3 end --- */
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */

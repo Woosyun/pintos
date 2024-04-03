@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/lib.h"//project 1.3
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -20,13 +21,13 @@
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
 
+int load_avg; // project 1.3
+
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
 
-/* ----- project 1 start ----- */
-static struct list sleep_list;
-/* ----- project 1 end ------- */
+static struct list sleep_list;// project 1
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
@@ -121,6 +122,8 @@ thread_start (void)
 
   /* Wait for the idle thread to initialize idle_thread. */
   sema_down (&idle_started);
+
+	load_avg = 0;//project 1.3
 }
 
 /* Called by the timer interrupt handler at each timer tick.
@@ -416,6 +419,7 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
+	ASSERT(!thread_mlfqs);//project 1.3
   thread_current ()->priority = new_priority;
 	/* --- project 1.2 start --- */
 	thread_current ()->init_priority = new_priority;
@@ -423,45 +427,110 @@ thread_set_priority (int new_priority)
 	thread_preemption();
 	/* --- project 1.2 end --- */
 }
+/* --- project 1.3 start --- */
+void
+mlfqs_per_tick (void)// increase recent cpu of current running thread
+{
+	struct thread *t = thread_current();
+	if (t != idle_thread)
+		t->recent_cpu += int_to_fp(1);
+}
+void
+mlfqs_per_sec (void)
+{
+	//1. update load_avg
+	int ready_threads = list_size (&ready_list);
+	if (thread_current () != idle_thread)
+		ready_threads++;
+	load_avg = cal_load_avg (load_avg, ready_threads);
+	//2. recalculate recent cpu of all threads
+	struct thread *t;
+	struct list_elem *e;
+	for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e))
+	{
+		t = list_entry (e, struct thread, elem);
+		if (t != idle_thread)
+			t->recent_cpu = cal_recent_cpu (load_avg, t->recent_cpu, t->nice);
+	}
+}
+void
+mlfqs_per_4_ticks (void)// recalculate priority of all threads
+{
+	struct thread *t;
+	struct list_elem *e;
+	for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e))
+	{
+		t = list_entry (e, struct thread, elem);
+		if (t != idle_thread)
+			t->priority = cal_priority (t->recent_cpu, t->nice);
+	}
+}
+/* --- project 1.3 end --- */
 
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) 
 {
-  return thread_current ()->priority;
+	/* --- project 1.3 start --- */
+	enum intr_level old_level = intr_disable ();
+	int re = thread_current ()->priority;
+	intr_set_level (old_level);
+  return re;
+	/* --- project 1.3 end --- */
 }
 
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice UNUSED) 
+thread_set_nice (int new_nice) 
 {
-  /* Not yet implemented. */
+	/* --- project 1.3 start --- */
+	enum intr_level old_level = intr_disable ();
+	
+	struct thread *t = thread_current();
+	ASSERT (t != idle_thread);
+
+	t->nice = new_nice;
+	t->priority = cal_priority (t->recent_cpu, t->nice);
+	thread_preemption ();
+
+	intr_set_level (old_level);
+	/* --- project 1.3 end --- */
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+	/* --- project 1.3 start --- */
+	enum intr_level old_level = intr_disable ();
+	int nice = thread_current ()->nice;
+	intr_set_level (old_level);
+  return nice;
+	/* --- project 1.3 end --- */
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) 
 {
-	// load_avg = (59/60)*load_avg + (1/60)*ready_threads
-	// return 100 *load_avg
-  return 0;
+	/* --- project 1.3 start --- */
+	enum intr_level old_level = intr_disable ();
+	int re = fp_to_int_round (fp_mul (load_avg, int_to_fp(100)));
+	intr_set_level (old_level);
+  return re;
+	/* --- project 1.3 end --- */
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) 
 {
-	// recent_cpu = (2*load_avg)/(2*load_avg+1)*recent_cpu + nice
-	// return 100 * recent_cpu
-  return 0;
+	/* --- project 1.3 start --- */
+	enum intr_level old_level = intr_disable ();
+	int re = fp_to_int_round (fp_mul (thread_current()->recent_cpu, int_to_fp (100)));
+	intr_set_level (old_level);
+  return re;
+	/* --- project 1.3 end --- */
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -555,6 +624,11 @@ init_thread (struct thread *t, const char *name, int priority)
 	t->lock_ptr = NULL;
 	list_init (&t->donator_li);
 	/* --- project 1.2 end --- */
+	
+	/* --- project 1.3 start --- */
+	t->nice = 0;
+	t->recent_cpu = 0;
+	/* --- project 1.3 end --- */
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
