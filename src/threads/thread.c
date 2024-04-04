@@ -123,7 +123,7 @@ thread_start (void)
   /* Wait for the idle thread to initialize idle_thread. */
   sema_down (&idle_started);
 
-	load_avg = 0;//project 1.3
+	load_avg = int_to_fp (0);//project 1.3
 }
 
 /* Called by the timer interrupt handler at each timer tick.
@@ -434,35 +434,39 @@ thread_set_priority (int new_priority)
 void
 mlfqs_per_tick (void)// increase recent cpu of current running thread
 {
-	//enum intr_level old_level = intr_disable ();
-
 	struct thread *t = thread_current();
+	//printf("(per_tick)thread %d before increased : %d\n", t->tid, t->recent_cpu);
 	if (t != idle_thread)
 		t->recent_cpu += int_to_fp(1);
-
-	//intr_set_level (old_level);
+	//else
+	//	printf("this is idle thread\n");
+//	printf("(per_tick)thread %d increased to %d\n", t->tid, t->recent_cpu);
 }
 void
-mlfqs_per_sec (void)
+mlfqs_load_avg (void)
 {
-	enum intr_level old_level = intr_disable ();
-
 	struct thread *t;
 	struct list_elem *e;
-	//1. update load_avg
-	int ready_threads = thread_current() == idle_thread ? 0 : 1;
-	for (e = list_begin (&ready_list); e != list_end (&ready_list); e = list_next (e))
-	{
-		t = list_entry (e, struct thread, elem);
-		if (t != idle_thread)
-			ready_threads++;
-	}
+	int ready_threads = list_size (&ready_list);
+	ready_threads += (thread_current () == idle_thread) ? 0 : 1;
+	//for (e = list_begin (&ready_list); e != list_end (&ready_list); e = list_next (e))
+	//{
+	//	t = list_entry (e, struct thread, elem);
+		//if (t != idle_thread)
+			//ready_threads++;
+	//}
 	int a = fp_div (int_to_fp (59), int_to_fp (60));
 	int b = fp_div (int_to_fp (1), int_to_fp (60));
-	load_avg = fp_mul (load_avg, a) + fp_mul (int_to_fp (ready_threads), b);
 
-	//2. recalculate recent cpu of all threads
+	load_avg = fp_mul (load_avg, a) + fp_mul (int_to_fp (ready_threads), b);
+}
+void
+mlfqs_threads_recent_cpu (void)
+{
+	struct thread *t;
+	struct list_elem *e;
 	int c;
+	//printf("(threads_recent_cpus) updated cpus : ");
 	for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e))
 	{
 		t = list_entry (e, struct thread, elem);
@@ -471,32 +475,30 @@ mlfqs_per_sec (void)
 			c = fp_div (load_avg * 2, load_avg * 2 + int_to_fp (1));
 			t->recent_cpu = fp_mul (t->recent_cpu, c) + int_to_fp (t->nice);
 		}
+	//	printf("%d ", t->recent_cpu);
 	}
-
-	intr_set_level (old_level);
+	//printf("\n");
 }
 void
 mlfqs_per_4_ticks (void)// recalculate priority of all threads
 {
-	enum intr_level old_level = intr_disable ();
-
 	struct thread *t;
 	struct list_elem *e;
-
 	int a;
+	//printf("(per 4 ticks) ");
 	for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e))
 	{
 		t = list_entry (e, struct thread, elem);
 		if (t != idle_thread)
 		{
 			a = int_to_fp (63 - 2*t->nice);
-			t->priority = fp_to_int (a - (t->recent_cpu / 4));
+			t->priority = fp_to_int_round (a - (t->recent_cpu / 4));
 		}
+		//printf("thread:%d priority:%d ", t->tid, t->priority);
 	}
-	list_sort (&ready_list, thread_cmp_priority, 0);
+	//printf("\n");
+	//list_sort (&ready_list, thread_cmp_priority, 0);
 	thread_preemption ();
-
-	intr_set_level (old_level);
 }
 /* --- project 1.3 end --- */
 
@@ -528,7 +530,7 @@ thread_set_nice (int new_nice)
 	int a = int_to_fp (63 - 2*t->nice);
 	t->priority = fp_to_int (a - (t->recent_cpu / 4));
 
-	list_sort (&ready_list, thread_cmp_priority, 0);
+	//list_sort (&ready_list, thread_cmp_priority, 0);
 	thread_preemption ();
 	intr_set_level (old_level);
 	/* --- project 1.3 end --- */
@@ -670,7 +672,7 @@ init_thread (struct thread *t, const char *name, int priority)
 	
 	/* --- project 1.3 start --- */
 	t->nice = 0;
-	t->recent_cpu = 0;
+	t->recent_cpu = int_to_fp (0);
 	/* --- project 1.3 end --- */
 }
 

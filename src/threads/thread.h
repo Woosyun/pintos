@@ -129,7 +129,8 @@ void thread_preemption (void);
 /* --- project 1.3 start --- */
 void mlfqs_per_tick (void);
 void mlfqs_per_4_ticks (void);
-void mlfqs_per_sec (void);
+void mlfqs_threads_recent_cpu (void);
+void mlfqs_load_avg (void);
 /* --- project 1.3 end --- */
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

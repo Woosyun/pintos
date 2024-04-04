@@ -66,7 +66,7 @@ pass tests/threads/mlfqs-load-avg
 pintos -v -k -T 480 --qemu  -- -q -mlfqs run mlfqs-recent-1 < /dev/null 2> tests/threads/mlfqs-recent-1.errors > tests/threads/mlfqs-recent-1.output
 perl -I../.. ../../tests/threads/mlfqs-recent-1.ck tests/threads/mlfqs-recent-1 tests/threads/mlfqs-recent-1.result
 FAIL tests/threads/mlfqs-recent-1
-run: TIMEOUT after 481 seconds of wall-clock time - load average: 0.35, 0.46, 0.49
+run: TIMEOUT after 481 seconds of wall-clock time - load average: 0.24, 0.32, 0.38
 pintos -v -k -T 480 --qemu  -- -q -mlfqs run mlfqs-fair-2 < /dev/null 2> tests/threads/mlfqs-fair-2.errors > tests/threads/mlfqs-fair-2.output
 perl -I../.. ../../tests/threads/mlfqs-fair-2.ck tests/threads/mlfqs-fair-2 tests/threads/mlfqs-fair-2.result
 pass tests/threads/mlfqs-fair-2
@@ -79,7 +79,7 @@ FAIL tests/threads/mlfqs-nice-2
 Some tick counts were missing or differed from those expected by more than 50.
 thread   actual <-> expected explanation
 ------ -------- --- -------- ----------------------------------------
-     0     3000 >>> 1904     Too big, by 1046.
+     0     3001 >>> 1904     Too big, by 1047.
      1        0 <<< 1096     Too small, by 1046.
 pintos -v -k -T 480 --qemu  -- -q -mlfqs run mlfqs-nice-10 < /dev/null 2> tests/threads/mlfqs-nice-10.errors > tests/threads/mlfqs-nice-10.output
 perl -I../.. ../../tests/threads/mlfqs-nice-10.ck tests/threads/mlfqs-nice-10 tests/threads/mlfqs-nice-10.result
@@ -87,7 +87,7 @@ FAIL tests/threads/mlfqs-nice-10
 Some tick counts were missing or differed from those expected by more than 25.
 thread   actual <-> expected explanation
 ------ -------- --- -------- ----------------------------------------
-     0     3000 >>> 672      Too big, by 2303.
+     0     3001 >>> 672      Too big, by 2304.
      1        0 <<< 588      Too small, by 563.
      2        0 <<< 492      Too small, by 467.
      3        0 <<< 408      Too small, by 383.
