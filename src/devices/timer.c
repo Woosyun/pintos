@@ -174,8 +174,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
   ticks++;
   thread_tick ();
 
-	thread_wakeup(ticks);// project 1
-
 	/* --- project 1.3 start --- */
 	if (thread_mlfqs)
 	{
@@ -188,6 +186,8 @@ timer_interrupt (struct intr_frame *args UNUSED)
 		}
 	}
 	/* --- project 1.3 end --- */
+	
+	thread_wakeup(ticks);//project 1
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

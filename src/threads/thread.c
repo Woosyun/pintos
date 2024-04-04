@@ -419,7 +419,10 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-	ASSERT(!thread_mlfqs);//project 1.3
+	//project 1.3
+	if (thread_mlfqs)
+		return;
+
   thread_current ()->priority = new_priority;
 	/* --- project 1.2 start --- */
 	thread_current ()->init_priority = new_priority;
@@ -431,39 +434,69 @@ thread_set_priority (int new_priority)
 void
 mlfqs_per_tick (void)// increase recent cpu of current running thread
 {
+	//enum intr_level old_level = intr_disable ();
+
 	struct thread *t = thread_current();
 	if (t != idle_thread)
 		t->recent_cpu += int_to_fp(1);
+
+	//intr_set_level (old_level);
 }
 void
 mlfqs_per_sec (void)
 {
-	//1. update load_avg
-	int ready_threads = list_size (&ready_list);
-	if (thread_current () != idle_thread)
-		ready_threads++;
-	load_avg = cal_load_avg (load_avg, ready_threads);
-	//2. recalculate recent cpu of all threads
+	enum intr_level old_level = intr_disable ();
+
 	struct thread *t;
 	struct list_elem *e;
+	//1. update load_avg
+	int ready_threads = thread_current() == idle_thread ? 0 : 1;
+	for (e = list_begin (&ready_list); e != list_end (&ready_list); e = list_next (e))
+	{
+		t = list_entry (e, struct thread, elem);
+		if (t != idle_thread)
+			ready_threads++;
+	}
+	int a = fp_div (int_to_fp (59), int_to_fp (60));
+	int b = fp_div (int_to_fp (1), int_to_fp (60));
+	load_avg = fp_mul (load_avg, a) + fp_mul (int_to_fp (ready_threads), b);
+
+	//2. recalculate recent cpu of all threads
+	int c;
 	for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e))
 	{
 		t = list_entry (e, struct thread, elem);
 		if (t != idle_thread)
-			t->recent_cpu = cal_recent_cpu (load_avg, t->recent_cpu, t->nice);
+		{
+			c = fp_div (load_avg * 2, load_avg * 2 + int_to_fp (1));
+			t->recent_cpu = fp_mul (t->recent_cpu, c) + int_to_fp (t->nice);
+		}
 	}
+
+	intr_set_level (old_level);
 }
 void
 mlfqs_per_4_ticks (void)// recalculate priority of all threads
 {
+	enum intr_level old_level = intr_disable ();
+
 	struct thread *t;
 	struct list_elem *e;
+
+	int a;
 	for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e))
 	{
 		t = list_entry (e, struct thread, elem);
 		if (t != idle_thread)
-			t->priority = cal_priority (t->recent_cpu, t->nice);
+		{
+			a = int_to_fp (63 - 2*t->nice);
+			t->priority = fp_to_int (a - (t->recent_cpu / 4));
+		}
 	}
+	list_sort (&ready_list, thread_cmp_priority, 0);
+	thread_preemption ();
+
+	intr_set_level (old_level);
 }
 /* --- project 1.3 end --- */
 
@@ -473,7 +506,9 @@ thread_get_priority (void)
 {
 	/* --- project 1.3 start --- */
 	enum intr_level old_level = intr_disable ();
+
 	int re = thread_current ()->priority;
+
 	intr_set_level (old_level);
   return re;
 	/* --- project 1.3 end --- */
@@ -485,14 +520,16 @@ thread_set_nice (int new_nice)
 {
 	/* --- project 1.3 start --- */
 	enum intr_level old_level = intr_disable ();
-	
 	struct thread *t = thread_current();
-	ASSERT (t != idle_thread);
+	if(thread_current() == idle_thread)
+		return;
 
 	t->nice = new_nice;
-	t->priority = cal_priority (t->recent_cpu, t->nice);
-	thread_preemption ();
+	int a = int_to_fp (63 - 2*t->nice);
+	t->priority = fp_to_int (a - (t->recent_cpu / 4));
 
+	list_sort (&ready_list, thread_cmp_priority, 0);
+	thread_preemption ();
 	intr_set_level (old_level);
 	/* --- project 1.3 end --- */
 }
@@ -503,7 +540,9 @@ thread_get_nice (void)
 {
 	/* --- project 1.3 start --- */
 	enum intr_level old_level = intr_disable ();
+
 	int nice = thread_current ()->nice;
+
 	intr_set_level (old_level);
   return nice;
 	/* --- project 1.3 end --- */
@@ -515,7 +554,9 @@ thread_get_load_avg (void)
 {
 	/* --- project 1.3 start --- */
 	enum intr_level old_level = intr_disable ();
+
 	int re = fp_to_int_round (fp_mul (load_avg, int_to_fp(100)));
+
 	intr_set_level (old_level);
   return re;
 	/* --- project 1.3 end --- */
@@ -527,7 +568,9 @@ thread_get_recent_cpu (void)
 {
 	/* --- project 1.3 start --- */
 	enum intr_level old_level = intr_disable ();
+
 	int re = fp_to_int_round (fp_mul (thread_current()->recent_cpu, int_to_fp (100)));
+
 	intr_set_level (old_level);
   return re;
 	/* --- project 1.3 end --- */
@@ -616,9 +659,9 @@ init_thread (struct thread *t, const char *name, int priority)
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
-  t->priority = priority;
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
+ 	t->priority = priority;
 	/* --- project 1.2 start --- */
 	t->init_priority = priority;
 	t->lock_ptr = NULL;
