@@ -181,7 +181,10 @@ timer_interrupt (struct intr_frame *args UNUSED)
 		if (ticks % 4 == 0)
 		{
 			if (ticks % TIMER_FREQ == 0)
-				mlfqs_per_sec ();// update load_avg and recalculate recent_cpu of all threads
+			{
+				mlfqs_threads_recent_cpu ();
+				mlfqs_load_avg ();// update load_avg and recalculate recent_cpu of all threads
+			}
 			mlfqs_per_4_ticks ();// recalculate priority of all threads
 		}
 	}
