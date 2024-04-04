@@ -435,12 +435,8 @@ void
 mlfqs_per_tick (void)// increase recent cpu of current running thread
 {
 	struct thread *t = thread_current();
-	//printf("(per_tick)thread %d before increased : %d\n", t->tid, t->recent_cpu);
 	if (t != idle_thread)
 		t->recent_cpu += int_to_fp(1);
-	//else
-	//	printf("this is idle thread\n");
-//	printf("(per_tick)thread %d increased to %d\n", t->tid, t->recent_cpu);
 }
 void
 mlfqs_load_avg (void)
@@ -449,12 +445,7 @@ mlfqs_load_avg (void)
 	struct list_elem *e;
 	int ready_threads = list_size (&ready_list);
 	ready_threads += (thread_current () == idle_thread) ? 0 : 1;
-	//for (e = list_begin (&ready_list); e != list_end (&ready_list); e = list_next (e))
-	//{
-	//	t = list_entry (e, struct thread, elem);
-		//if (t != idle_thread)
-			//ready_threads++;
-	//}
+
 	int a = fp_div (int_to_fp (59), int_to_fp (60));
 	int b = fp_div (int_to_fp (1), int_to_fp (60));
 
@@ -466,7 +457,6 @@ mlfqs_threads_recent_cpu (void)
 	struct thread *t;
 	struct list_elem *e;
 	int c;
-	//printf("(threads_recent_cpus) updated cpus : ");
 	for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e))
 	{
 		t = list_entry (e, struct thread, elem);
@@ -475,9 +465,7 @@ mlfqs_threads_recent_cpu (void)
 			c = fp_div (load_avg * 2, load_avg * 2 + int_to_fp (1));
 			t->recent_cpu = fp_mul (t->recent_cpu, c) + int_to_fp (t->nice);
 		}
-	//	printf("%d ", t->recent_cpu);
 	}
-	//printf("\n");
 }
 void
 mlfqs_per_4_ticks (void)// recalculate priority of all threads
@@ -485,7 +473,6 @@ mlfqs_per_4_ticks (void)// recalculate priority of all threads
 	struct thread *t;
 	struct list_elem *e;
 	int a;
-	//printf("(per 4 ticks) ");
 	for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e))
 	{
 		t = list_entry (e, struct thread, elem);
@@ -494,9 +481,7 @@ mlfqs_per_4_ticks (void)// recalculate priority of all threads
 			a = int_to_fp (63 - 2*t->nice);
 			t->priority = fp_to_int_round (a - (t->recent_cpu / 4));
 		}
-		//printf("thread:%d priority:%d ", t->tid, t->priority);
 	}
-	//printf("\n");
 	//list_sort (&ready_list, thread_cmp_priority, 0);
 	thread_preemption ();
 }
@@ -521,10 +506,8 @@ void
 thread_set_nice (int new_nice) 
 {
 	/* --- project 1.3 start --- */
-	enum intr_level old_level = intr_disable ();
 	struct thread *t = thread_current();
-	if(thread_current() == idle_thread)
-		return;
+	enum intr_level old_level = intr_disable ();
 
 	t->nice = new_nice;
 	int a = int_to_fp (63 - 2*t->nice);
