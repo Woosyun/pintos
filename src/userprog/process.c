@@ -17,9 +17,16 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "userprog/syscall.h"
+#include "threads/malloc.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+
+/* --- project 3.3 start --- */
+void free_children(struct list *child_list);
+static void get_stack_args(char *file_name, void **esp, char **save_ptr);
+/* --- project 3.3 end --- */
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -38,10 +45,31 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+	/* --- project 3 start --- */
+	char *save_ptr;
+	char *f_name = malloc (strlen (fn_copy) + 1);
+	strlcpy (f_name, fn_copy, strlen(fn_copy) + 1);
+	f_name = strtok_r (f_name, " ", &save_ptr);
+	/* --- project 3 end --- */
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (f_name, PRI_DEFAULT, start_process, fn_copy);
+	free (f_name);
   if (tid == TID_ERROR)
+	{
     palloc_free_page (fn_copy); 
+		return -1;
+	}
+
+	/* --- project 3 start --- */
+	/*struct child_element *child = get_child (tid, &thread_current ()->child_list);
+	sema_down (&child->real_child->sema_wait);
+
+	if (!child->loaded_success)
+		return -1;
+		*/
+	/* --- project 3 end --- */
+
   return tid;
 }
 
@@ -61,10 +89,22 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
+	
+	/* --- project 3.3 start --- */
+	struct thread *cur = thread_current ();
+	if (cur->parent != NULL)
+	{
+		struct child_element *child = get_child (cur->tid, &cur->parent->child_list);
+		child->loaded_success = success;
+	}
+
+	sema_up (&cur->sema_wait);
+	/* --- project 3 end --- */
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
+  if (!success)//project 3 
     thread_exit ();
+
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -88,15 +128,52 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
+	/* --- project 3.3 start --- */
+	struct child_element *child = get_child(child_tid, &thread_current()-> child_list);
+	if (child -> first_time)
+	{
+		child -> first_time = false;
+		if (child->cur_status == STILL_ALIVE)
+			sema_down (&child->real_child->sema_wait);	
+		return child->exit_status;
+	}
+	//remove_child (child_tid, &thread_current ()->child_list);	
+
+	/* --- project 3.3 end --- */
+
   return -1;
 }
 
 /* Free the current process's resources. */
 void
-process_exit (void)
+process_exit ()
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+
+	/* --- project 3.3 start --- */
+	/* struct child_element *child = get_child(cur->tid, &cur->parent->child_list);
+	if(child -> cur_status == STILL_ALIVE)
+	{
+		child -> cur_status = HAD_EXITED;
+		child -> exit_status = status;		
+	}
+	remove_child (cur->tid, &cur->parent->child_list);
+	free_children(&cur->child_list);
+	cur->parent = NULL;
+
+	lock_acquire (&file_lock);
+	if (cur->exec_file != NULL)
+	{
+		file_allow_write(cur -> exec_file);
+		file_close(cur->exec_file);
+	}
+	close_all(&cur->fd_list);
+	lock_release (&file_lock);
+
+	sema_up(&cur->sema_wait);
+	*/
+	/* --- project 3.3 end --- */
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -115,6 +192,21 @@ process_exit (void)
       pagedir_destroy (pd);
     }
 }
+/* --- project 3.3 start --- */
+void
+free_children(struct list *child_list)
+{
+	struct list_elem* e1 = list_begin(child_list);
+	while(e1!=list_end(child_list))
+	{
+		struct list_elem* next = list_next(e1);
+		struct child_element* c = list_entry(e1, struct child_element, child_elem);
+		list_remove(e1);
+		free(c);
+		e1 = next;
+	}
+}
+/* --- project 3.3 end --- */
 
 /* Sets up the CPU for running user code in the current
    thread.
@@ -215,14 +307,34 @@ load (const char *file_name, void (**eip) (void), void **esp)
   bool success = false;
   int i;
 
+	/* --- project 3.2 start --- */
+	char *fn_copy;
+	char *save_ptr;
+	fn_copy = malloc (strlen (file_name) + 1);
+	strlcpy(fn_copy, file_name, strlen (file_name) + 1);
+	fn_copy = strtok_r (fn_copy, " ", &save_ptr);
+	/*char *arg; //= strtok_r (fn_copy, " ", &save_ptr);
+	char *argv[128];
+	int argc = 0;
+	for (arg = strtok_r (fn_copy, " ", &save_ptr); arg != NULL; arg = strtok_r(NULL, " ", &save_ptr))
+	{
+		argv[argc] = arg;
+		//strlcpy (argv[argc], arg, strlen (arg)+1);
+		argc += 1;
+	}
+	*/
+	/* --- project 3.2 end --- */
+
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
 
+	//lock_acquire (&file_lock);//project 3
+	
   /* Open executable file. */
-  file = filesys_open (file_name);
+  file = filesys_open (fn_copy);//project 3 : file_name -> argv[0]
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -310,11 +422,87 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   success = true;
 
+	/* --- project 3 start --- */
+	get_stack_args (fn_copy, esp, &save_ptr);
+	//file_deny_write (file);
+	/* --- project 3 end --- */
+
  done:
+	free(fn_copy);//project 3
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+	if (!success)//project 3
+	{
+		file_deny_write (file);
+		t->exec_file = file;
+	}
+	else
+  	file_close (file);
+	//lock_release (&file_lock);//project 3
   return success;
 }
+
+/* --- project 3.3 start --- */
+static void 
+get_stack_args(char *file_name, void **esp, char **save_ptr)
+{
+	char *token = file_name;
+	void *stack_pointer = *esp;
+	int argc = 0;
+	int total_length = 0;
+	while (token != NULL)
+	{
+		int arg_length = (strlen(token) + 1);
+		total_length += arg_length;
+		stack_pointer -= arg_length;
+		memcpy(stack_pointer, token, arg_length);
+		argc++;
+		token = strtok_r(NULL, " ", save_ptr);
+	}
+	//starting pointer of args
+	char *args_pointer = (char *) stack_pointer;
+
+	int word_align = 0;
+	while (total_length % 4 != 0)
+	{
+		word_align++;
+		total_length++;
+	}
+	if (word_align != 0)
+	{
+		stack_pointer -= word_align;
+		memset(stack_pointer, 0, word_align);
+	}
+	//add null
+	stack_pointer -= sizeof(char *);
+	memset(stack_pointer, 0, 1);
+	
+	//add argument address
+	int args_pushed = 0;
+	while(argc > args_pushed)
+	{
+		stack_pointer -= sizeof(char *);
+		*((char **) stack_pointer) = args_pointer;
+		args_pushed++;
+		args_pointer += (strlen(args_pointer) + 1);
+	}
+
+	//add char
+	char ** first_fetch = (char **) stack_pointer;
+	stack_pointer -= sizeof(char **);
+	*((char ***) stack_pointer) = first_fetch;
+
+	//add number of arguments
+	stack_pointer -= sizeof(int);
+	*(int *) (stack_pointer) = argc;
+
+	//add return address
+	stack_pointer -= sizeof(int*);
+	*(int *) (stack_pointer) = 0;
+	*esp = stack_pointer;
+}
+
+/* --- project 3.3 end --- */
+
 
 /* load() helpers. */
 
@@ -426,6 +614,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
+//setup_stack (void **esp, int argc, char **argv) 
 static bool
 setup_stack (void **esp) 
 {
@@ -437,7 +626,58 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
+			{
         *esp = PHYS_BASE;
+				/* --- project 3 start --- */
+				/*
+				int i;
+				char *args1[128];
+
+				//push arguments into stack
+				for (i = argc-1; i>=0; i--)
+				{
+					*esp = (char *)*esp - (strlen (argv[i]) + 1);
+					args1[i] = (char *)*esp;
+					memcpy (*esp, argv[i], strlen (argv[i]) + 1);
+				}
+
+				// round esp to multiple of 4
+				while ((int)*esp % 4 != 0)
+				{
+					*esp = (char *)*esp - sizeof (char);
+					(*esp)--;
+					char buf = 0;
+					memcpy (*esp, &buf, sizeof (char));
+				}
+
+				// place null ptr sentinel
+				*esp = (char *)*esp - sizeof (char *);
+				char *sentinel = 0;
+				memcpy (*esp, &sentinel, sizeof (char *));
+
+				// push address of arguments into stack
+				for (i=argc-1; i>=0; i--)
+				{
+					*esp = (char *)*esp - sizeof (char *);
+					memcpy (*esp, &args1[i], sizeof (char *));
+				}
+
+				//push address to argv
+				char **args2 = *esp;
+				*esp = (char *)*esp - sizeof (char **);
+				memcpy (*esp, &args2, sizeof (char **));
+
+				//push argc
+				*esp = (char *)*esp - sizeof (int);
+				memcpy (*esp, &argc, sizeof (char **));
+
+				//push fake return address
+				void *re = 0;
+				*esp = (char *)*esp - sizeof (void *);
+				memcpy (*esp, &re, sizeof (void *));
+				*/
+				/* --- project 3 end --- */
+			}
       else
         palloc_free_page (kpage);
     }
