@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "threads/synch.h"//project 3.3
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -13,6 +14,13 @@ enum thread_status
     THREAD_BLOCKED,     /* Waiting for an event to trigger. */
     THREAD_DYING        /* About to be destroyed. */
   };
+
+/* --- project 3.3 start --- */
+#define WAS_KILLED 0
+#define HAD_EXITED 1
+#define STILL_ALIVE 2
+#define INIT_STATUS -100
+/* --- project 3.3 end --- */
 
 /* Thread identifier type.
    You can redefine this to whatever type you like. */
@@ -114,7 +122,30 @@ struct thread
     int nice;
     int recent_cpu;
     /* --- project 1.3 end --- */
+
+    /* --- project 3.3 start --- */
+    struct list fd_list;
+    int fd_size;
+    struct file *exec_file;
+
+    struct semaphore sema_exec;
+    struct semaphore sema_wait;
+    struct list child_list;
+    struct thread *parent;
+    /* --- project 3.3 end --- */
   };
+/* project 3.3 start --- */
+struct child_element
+{
+	struct list_elem child_elem;
+	struct thread *real_child;
+	int exit_status;
+	int cur_status;
+	int child_pid;
+	bool first_time;
+	bool loaded_success;
+};
+/* project 3.3 end --- */
 
 /* ---- project 1 start ----- */
 void thread_sleep (int64_t);

@@ -12,6 +12,7 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "threads/lib.h"//project 1.3
+#include "threads/malloc.h"//project 3.3
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -76,6 +77,8 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
+struct child_element *create_child (struct thread *t);//project 3.3
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -105,6 +108,8 @@ thread_init (void)
   initial_thread->tid = allocate_tid ();
 
 	list_init(&sleep_list);//project 1
+	
+	initial_thread->parent = NULL;//project 3.3
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -193,6 +198,12 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
+	/* --- project 3.3 start --- */
+	struct child_element *child = create_child (t);
+	list_push_back (&thread_current()->child_list, &child->child_elem);
+	t->parent = thread_current ();
+	/* --- project 3.3 end --- */
+
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
@@ -217,10 +228,26 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-	thread_preemption();//project 1.2
+	//thread_preemption();//project 1.2
 
   return tid;
 }
+
+/* --- project 3.3 start --- */
+struct child_element*
+create_child (struct thread *t)
+{
+	struct child_element *child = malloc (sizeof (struct child_element));
+	child->child_pid = t->tid;
+	child->first_time = true;
+	child->loaded_success = false;
+	child->real_child = t;
+	child->exit_status = INIT_STATUS;
+	child->cur_status = STILL_ALIVE;
+
+	return child;
+}
+/* --- project 3.3 end --- */
 
 /* Puts the current thread to sleep.  It will not be scheduled
    again until awoken by thread_unblock().
@@ -270,7 +297,7 @@ thread_cmp_priority(const struct list_elem *le, const struct list_elem *ri, void
 void
 thread_preemption (void)
 {
-	if (!list_empty(&ready_list))
+	if (!list_empty(&ready_list) && !intr_context ())//project 3 : add !intr_context ()
 	{
 		struct thread *running_thread_ptr = thread_current();
 		struct list_elem *e = list_front(&ready_list);
@@ -441,8 +468,8 @@ mlfqs_per_tick (void)// increase recent cpu of current running thread
 void
 mlfqs_load_avg (void)
 {
-	struct thread *t;
-	struct list_elem *e;
+	//struct thread *t;
+	//struct list_elem *e;
 	int ready_threads = list_size (&ready_list);
 	ready_threads += (thread_current () == idle_thread) ? 0 : 1;
 
@@ -657,6 +684,16 @@ init_thread (struct thread *t, const char *name, int priority)
 	t->nice = 0;
 	t->recent_cpu = int_to_fp (0);
 	/* --- project 1.3 end --- */
+
+	/* --- project 3.3 start --- */
+	list_init (&t->fd_list);
+	t->fd_size = 1;// 1 or 2 ?
+	t->exec_file = NULL;
+	list_init (&t->child_list);
+	sema_init (&t->sema_exec, 0);
+	sema_init (&t->sema_wait, 0);
+	t->parent = NULL;
+	/* --- project 3.3 end --- */
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
