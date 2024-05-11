@@ -133,30 +133,16 @@ process_wait (tid_t child_tid UNUSED)
 	struct list *child_list = &thread_current ()->child_list;
 	struct child_element *child = get_child(child_tid, child_list);
 
-	if (child == NULL || child->cur_status == WAS_KILLED)
+	if (child == NULL || child->cur_status == WAS_KILLED || !child->first_time)
 		return -1;
+	child->first_time = false;
+
 	if (child->cur_status == STILL_ALIVE)
 		sema_down (&child->real_child->sema_wait);
 
 	int exit_status = child->exit_status;
 	remove_child (child_tid, child_list);
 	return exit_status;
-	/*
-	if (child -> first_time)
-	{
-		child -> first_time = false;
-		if (child->cur_status == STILL_ALIVE)
-			sema_down (&child->real_child->sema_wait);	
-
-		//TODO: remove child from parent thread's child_list
-		remove_child (child_tid, &thread_current ()->child_list);		
-
-		return child->exit_status;
-	}
-	*/
-	/* --- project 3.3 end --- */
-
-  return -1;
 }
 
 /* Free the current process's resources. */
@@ -187,7 +173,6 @@ process_exit ()
 	lock_release (&file_lock);
 
 	*/
-	//TODO: solve infinite waiting sema_exec
 	sema_up(&cur->sema_wait);
 	sema_up(&cur->sema_exec);
 	/* --- project 3.3 end --- */

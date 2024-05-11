@@ -19,11 +19,6 @@ void validate (const void *ptr);
 struct child_element* get_child(tid_t tid,struct list *mylist);
 void fd_init(struct fd_element *file_d, int fd_, struct file *myfile_);
 struct fd_element* get_fd(int fd);
-bool check_pointer (void *ptr);
-
-static int get_user (char *uaddr);
-bool check_args (void *ptr, int argc);
-bool check_string (char *ptr);
 
 void halt (void);
 int write (int fd, const void *buffer_, unsigned size);
@@ -60,36 +55,6 @@ validate (const void *ptr)
 	if (check == NULL)
 		exit (-1);
 }
-
-static int 
-get_user (char *uaddr)
-{
-	if (!is_user_vaddr (uaddr))
-		return -1;
-	int re;
-	asm ("movl $1f, %0; movzbl %1, %0; 1:" : "=&a" (re) : "m" (*uaddr));
-	return re;
-}
-bool 
-check_string (char *ptr)
-{
-	int c = get_user (ptr);
-	while (c != -1)
-	{
-		if (c == '\0')
-			return true;
-		ptr++;
-		c = get_user (ptr);
-	}
-	return false;
-}
-bool
-check_pointer (void *ptr)
-{
-	if (!ptr || get_user (ptr) == -1)
-		return false;
-	return true;
-}
 /* --- project 3.3 end --- */
 
 static void
@@ -109,7 +74,6 @@ syscall_handler (struct intr_frame *f UNUSED)
 			break;
 		case SYS_EXIT:
 			{
-				//get_args_1 (f, SYS_EXIT, args);
 				int exit_status = *(int *)args;
 				args += 4;
 				exit (exit_status);
@@ -117,7 +81,6 @@ syscall_handler (struct intr_frame *f UNUSED)
 			}
 		case SYS_EXEC:
 			{
-				//get_args_1 (f, SYS_EXEC, args);
 				const char *cmd_line = *(const char **)args;
 				args += 4;
 				validate ((const void *)cmd_line);
@@ -127,7 +90,6 @@ syscall_handler (struct intr_frame *f UNUSED)
 			}
 		case SYS_WAIT:
 			{
-				//get_args_1 (f, SYS_WAIT, args);
 				tid_t pid = *(tid_t *)args;
 				args += 4;
 
@@ -136,7 +98,6 @@ syscall_handler (struct intr_frame *f UNUSED)
 			}
 		case SYS_CREATE:
 			{
-				//get_args_2 (f, SYS_CREATE, args);
 				const char *file = *(const char **)args;
 				args += 4;
 				validate ((const void *)file);
@@ -148,7 +109,6 @@ syscall_handler (struct intr_frame *f UNUSED)
 			}
 		case SYS_REMOVE:
 			{
-				//get_args_1 (f, SYS_REMOVE, args);
 				const char *file = *(const char **)args;
 				args += 4;
 				validate ((const void *)file);
@@ -158,7 +118,6 @@ syscall_handler (struct intr_frame *f UNUSED)
 			}
 		case SYS_OPEN:
 			{
-				//get_args_1 (f, SYS_OPEN, args);
 				const char *file = *(const char **)args;
 				args += 4;
 				validate ((const void *)file);
@@ -168,7 +127,6 @@ syscall_handler (struct intr_frame *f UNUSED)
 			}
 		case SYS_FILESIZE:
 			{
-				//get_args_1 (f, SYS_FILESIZE, args);
 				int fd = *(int *)args;
 				args += 4;
 
@@ -177,7 +135,6 @@ syscall_handler (struct intr_frame *f UNUSED)
 			}
 		case SYS_READ:
 			{
-				//get_args_3 (f, SYS_READ, args);
 				int fd = *(int *)args;
 				args += 4;
 				void *buffer = *(void **)args;
@@ -190,7 +147,6 @@ syscall_handler (struct intr_frame *f UNUSED)
 			}
 		case SYS_WRITE:
 			{
-				//get_args_3 (f, SYS_WRITE, args);
 				int fd = *(int *)args;
 				args += 4;
 				void *buffer = *(void **)args;
@@ -205,7 +161,6 @@ syscall_handler (struct intr_frame *f UNUSED)
 			}
 		case SYS_SEEK:
 			{
-				//get_args_2 (f, SYS_SEEK, args);
 				int fd = *(int *)args;
 				args += 4;
 				unsigned position = *(unsigned *)args;
@@ -215,7 +170,6 @@ syscall_handler (struct intr_frame *f UNUSED)
 			}
 		case SYS_TELL:
 			{
-				//get_args_1 (f, SYS_TELL, args);
 				int fd = *(int *)args;
 				args += 4;
 
@@ -224,7 +178,6 @@ syscall_handler (struct intr_frame *f UNUSED)
 			}
 		case SYS_CLOSE:
 			{
-				//get_args_1 (f, SYS_CLOSE, args);
 				int fd = *(int *)args;
 				args += 4;
 
@@ -295,19 +248,7 @@ exec (const char *cmd_line)
 int 
 wait (tid_t pid)
 {
-	struct list *child_list = &thread_current ()->child_list;
-	struct child_element *child = get_child (pid, child_list);
-
-	if (child == NULL || child->cur_status == WAS_KILLED)
-		return -1;
-
-	if (child->cur_status == STILL_ALIVE)
-		sema_down (&child->real_child->sema_wait);
-
-	int exit_status = child->exit_status;
-	remove_child (pid, child_list);
-
-	return exit_status;
+	return process_wait (pid);
 }
 bool 
 create (const char *file, unsigned initial_size)
