@@ -39,11 +39,6 @@ void close (int fd);
 tid_t exec (const char *cmdline);
 void exit (int status);
 
-void get_args_3(struct intr_frame *f, int choose, void *args);
-void get_args_2(struct intr_frame *f, int choose, void *args);
-void get_args_1(struct intr_frame *f, int choose, void *args);
-
-
 /* --- project 3.3 end --- */
 
 static void syscall_handler (struct intr_frame *);
@@ -434,14 +429,15 @@ void close (int fd)
 	struct fd_element *fd_elem = get_fd(fd);
 	if(fd_elem == NULL)
 		exit (-1);//TODO: return ? exit ()?
-		//return;
+	//	return;
 	struct file *myfile = fd_elem->myfile;
+	remove_fd (fd, &thread_current ()->fd_list);
 
 	lock_acquire(&file_lock);
 	file_close(myfile);
 	lock_release(&file_lock);
 
-	//exit (0);//TODO: for create-normal
+
 }
 void close_all(struct list *fd_list)
 {
@@ -482,6 +478,21 @@ get_child(tid_t tid, struct list *mylist)
 	}
 	return NULL;
 }
+void 
+remove_fd (int fd, struct list *fd_list)
+{
+	struct list_elem *e;
+	for (e=list_begin (fd_list); e!=list_end (fd_list); e=list_next (e))
+	{
+		struct fd_element *fd_elem = list_entry (e, struct fd_element, element);
+		if (fd_elem->fd == fd)
+		{
+			list_remove (e);
+			return;
+		}
+	}
+}
+
 void
 remove_child (tid_t tid, struct list *mylist)
 {

@@ -31,6 +31,7 @@ unsigned tell (int);
 void close (int);
 void close_all (struct list *);
 struct child_element* get_child(tid_t,struct list *);
+void remove_fd (int, struct list *);
 void remove_child (tid_t, struct list *);
 /* --- project 3.3 end --- */
 
