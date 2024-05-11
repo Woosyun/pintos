@@ -61,16 +61,6 @@ process_execute (const char *file_name)
 		return -1;
 	}
 
-	/* --- project 3 start --- */
-	//TODO: kernel panic error
-	/*
-	struct child_element *child = get_child (tid, &thread_current ()->child_list);
-	sema_down (&child->real_child->sema_wait);
-	if (!child->loaded_success)
-		return -1;
-		*/
-	/* --- project 3 end --- */
-
   return tid;
 }
 
@@ -153,26 +143,6 @@ process_exit ()
   uint32_t *pd;
 
 	/* --- project 3.3 start --- */
-	/* struct child_element *child = get_child(cur->tid, &cur->parent->child_list);
-	if(child -> cur_status == STILL_ALIVE)
-	{
-		child -> cur_status = HAD_EXITED;
-		child -> exit_status = status;		
-	}
-	remove_child (cur->tid, &cur->parent->child_list);
-	free_children(&cur->child_list);
-	cur->parent = NULL;
-
-	lock_acquire (&file_lock);
-	if (cur->exec_file != NULL)
-	{
-		file_allow_write(cur -> exec_file);
-		file_close(cur->exec_file);
-	}
-	close_all(&cur->fd_list);
-	lock_release (&file_lock);
-
-	*/
 	sema_up(&cur->sema_wait);
 	sema_up(&cur->sema_exec);
 	/* --- project 3.3 end --- */
@@ -317,18 +287,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
 	strlcpy(fn_copy, file_name, strlen (file_name) + 1);
 	fn_copy = strtok_r (fn_copy, " ", &save_ptr);
 
-	/*
-	char *arg = strtok_r (fn_copy, " ", &save_ptr);
-	char *argv[128];
-	int argc = 0;
-	for (; arg != NULL; arg = strtok_r(NULL, " ", &save_ptr))
-	{
-		argv[argc] = arg;
-		//strlcpy (argv[argc], arg, strlen (arg)+1);
-		argc += 1;
-	}
-	printf("(load) argc = %d\n", argc);
-	*/
 	/* --- project 3.2 end --- */
 
   /* Allocate and activate page directory. */
@@ -424,7 +382,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
 
 	/* --- project 3 start --- */
-	//TODO: push to stack
 	get_stack_args (fn_copy, esp, &save_ptr);
 	file_deny_write (file);
 	/* --- project 3 end --- */
@@ -630,55 +587,6 @@ setup_stack (void **esp)
       if (success)
 			{
         *esp = PHYS_BASE;
-				/* --- project 3 start --- */
-				/*
-				int i;
-				char *args1[128];
-
-				//push arguments into stack
-				for (i = argc-1; i>=0; i--)
-				{
-					*esp = (char *)*esp - (strlen (argv[i]) + 1);
-					args1[i] = (char *)*esp;
-					memcpy (*esp, argv[i], strlen (argv[i]) + 1);
-				}
-
-				// round esp to multiple of 4
-				while ((int)*esp % 4 != 0)
-				{
-					*esp = (char *)*esp - sizeof (char);
-					(*esp)--;
-					char buf = 0;
-					memcpy (*esp, &buf, sizeof (char));
-				}
-
-				// place null ptr sentinel
-				*esp = (char *)*esp - sizeof (char *);
-				char *sentinel = 0;
-				memcpy (*esp, &sentinel, sizeof (char *));
-
-				// push address of arguments into stack
-				for (i=argc-1; i>=0; i--)
-				{
-					*esp = (char *)*esp - sizeof (char *);
-					memcpy (*esp, &args1[i], sizeof (char *));
-				}
-
-				//push address to argv
-				char **args2 = *esp;
-				*esp = (char *)*esp - sizeof (char **);
-				memcpy (*esp, &args2, sizeof (char **));
-
-				//push argc
-				*esp = (char *)*esp - sizeof (int);
-				memcpy (*esp, &argc, sizeof (char **));
-
-				//push fake return address
-				void *re = 0;
-				*esp = (char *)*esp - sizeof (void *);
-				memcpy (*esp, &re, sizeof (void *));
-				*/
-				/* --- project 3 end --- */
 			}
       else
         palloc_free_page (kpage);

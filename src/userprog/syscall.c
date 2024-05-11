@@ -206,16 +206,16 @@ exit (int status)
 
 	struct list *child_list = &cur->parent->child_list;
 	struct child_element *child = get_child (cur->tid, child_list);
+	if (child == NULL)//TODO: wait(exec()) = 81 if exit(81) runned before
+		return;
+
 	child->exit_status = status;
 	if (status == -1)
 		child->cur_status = WAS_KILLED;
 	else
 		child->cur_status = HAD_EXITED;
 
-	if (cur->parent != NULL)
-		remove_child (cur->tid, child_list);
-	free_children (child_list);
-	cur->parent = NULL;
+	free_children (&cur->child_list);
 
 	lock_acquire (&file_lock);
 	if (cur->exec_file != NULL)
