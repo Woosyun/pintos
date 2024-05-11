@@ -332,6 +332,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 	strlcpy(fn_copy, file_name, strlen (file_name) + 1);
 	fn_copy = strtok_r (fn_copy, " ", &save_ptr);
 
+	/*
 	char *arg = strtok_r (fn_copy, " ", &save_ptr);
 	char *argv[128];
 	int argc = 0;
@@ -341,6 +342,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
 		//strlcpy (argv[argc], arg, strlen (arg)+1);
 		argc += 1;
 	}
+	printf("(load) argc = %d\n", argc);
+	*/
 	/* --- project 3.2 end --- */
 
   /* Allocate and activate page directory. */
@@ -436,6 +439,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
 
 	/* --- project 3 start --- */
+	//TODO: push to stack
 	get_stack_args (fn_copy, esp, &save_ptr);
 	file_deny_write (file);
 	/* --- project 3 end --- */
