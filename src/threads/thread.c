@@ -228,7 +228,7 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-	//thread_preemption();//project 1.2
+	thread_preemption();//project 1.2
 
   return tid;
 }
@@ -238,6 +238,7 @@ struct child_element*
 create_child (struct thread *t)
 {
 	struct child_element *child = malloc (sizeof (struct child_element));
+
 	child->child_pid = t->tid;
 	child->first_time = true;
 	child->loaded_success = false;

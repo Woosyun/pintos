@@ -21,11 +21,10 @@ void fd_init(struct fd_element *file_d, int fd_, struct file *myfile_);
 struct fd_element* get_fd(int fd);
 bool check_pointer (void *ptr);
 
-/*
 static int get_user (char *uaddr);
 bool check_args (void *ptr, int argc);
 bool check_string (char *ptr);
-*/
+
 void halt (void);
 int write (int fd, const void *buffer_, unsigned size);
 int wait (tid_t pid);
@@ -59,92 +58,14 @@ syscall_init (void)
 void 
 validate (const void *ptr)
 {
-	if (!is_user_vaddr (ptr))
+	if (ptr == NULL || !is_user_vaddr (ptr))
 		exit (-1);
+
 	void *check = pagedir_get_page (thread_current ()->pagedir, ptr);
 	if (check == NULL)
 		exit (-1);
 }
 
-void get_args_1 (struct intr_frame *f, int choose, void *args)
-{
-	int argv = *((int *)args);
-	args += 4;
-
-	if (choose == SYS_EXIT)
-		exit (argv);
-	else if (choose == SYS_EXEC)
-	{
-		validate ((const void *)argv);
-		f->eax = exec ((const char *)argv);
-	}
-	else if (choose == SYS_WAIT)
-		f->eax = wait (argv);
-	else if (choose == SYS_REMOVE)
-	{
-		validate ((const void *)argv);
-		f->eax = remove ((const char *)argv);
-	}
-	else if (choose == SYS_OPEN)
-	{
-		validate ((const void *)argv);
-		f->eax = open ((const char *)argv);
-	}
-	else if (choose == SYS_FILESIZE)
-		f->eax = filesize (argv);
-	else if (choose == SYS_TELL)
-		f->eax = tell (argv);
-	else if (choose == SYS_CLOSE)
-		close (argv);
-}
-
-void 
-get_args_2 (struct intr_frame *f, int choose, void *args)
-{
-	int argv = *((int *)args);
-	args += 4;
-	int argv_1 = *((int *)args);
-	args += 4;
-
-	if (choose == SYS_CREATE)
-	{
-		validate ((const void *) argv);
-		f->eax = create ((const char *)argv, (unsigned)argv_1);
-	}
-	else if (choose == SYS_SEEK)
-		seek (argv, (unsigned)argv_1);
-}
-
-void 
-get_args_3 (struct intr_frame *f, int choose, void *args)
-{
-	int argv = *((int *)args);
-	args += 4;
-	int argv_1 = *((int *)args);
-	args += 4;
-	int argv_2 = *((int *)args);
-	args += 4;
-
-	validate ((const void *) argv_1);
-	void *temp = ((void *)argv_1) + argv_2;
-	validate ((const void *) temp);
-	if (choose == SYS_WRITE)
-		f->eax = write (argv, (void *)argv_1, (unsigned)argv_2);
-	else
-		f->eax = read (argv, (void *)argv_1, (unsigned) argv_2);
-}
-/*
-bool 
-check_args (void *ptr, int argc)
-{
-	int i;
-	for (i=0; i<4*argc; i++)
-	{
-		if (!check_pointer (ptr+i))
-			return false;
-	}
-	return true;
-}
 static int 
 get_user (char *uaddr)
 {
@@ -170,33 +91,21 @@ check_string (char *ptr)
 bool
 check_pointer (void *ptr)
 {
-	if (get_user (ptr) == -1)
+	if (!ptr || get_user (ptr) == -1)
 		return false;
 	return true;
 }
-*/
 /* --- project 3.3 end --- */
 
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  //printf ("system call!\n");
-  //thread_exit ();
 	/* --- project 3.3 start --- */
 	void *args = f->esp;
-	//validate syscall number?
 	validate ((const void *)args);
 	int syscall_number = *((int *)args);
 	args += 4;
-	//validate first arg
 	validate ((const void *)args);
-	/*if (!check_args (args, 1))
-	{
-		thread_exit();
-		return;
-	}
-	*/
-	//args += 4;
 
 	switch (syscall_number)
 	{
@@ -205,286 +114,131 @@ syscall_handler (struct intr_frame *f UNUSED)
 			break;
 		case SYS_EXIT:
 			{
-				/*if (!check_args (args + 4, 1))
-				{
-					exit (-1);
-					break;
-				}
-				int status = *(int *)args;
-				exit (status);*/
-				get_args_1 (f, SYS_EXIT, args);
+				//get_args_1 (f, SYS_EXIT, args);
+				int exit_status = *(int *)args;
+				args += 4;
+				exit (exit_status);
 				break;
 			}
 		case SYS_EXEC:
 			{
-				/*if (!check_args (args + 4, 1) || !check_string (*(char **)(args + 4)))
-				{
-					exit (-1);
-					break;
-				}
-				char *cmd_line = *(char **)(args + 4);
-				struct thread *t = thread_current ();
-				struct child_element *child = get_child (t->tid, &t->parent->child_list);
-				sema_down (&child->real_child->sema_exec);
-				tid_t pid = process_execute (cmd_line);
-				if (child->loaded_success)
-					f->eax = pid;
-				else
-					f->eax = -1;
-					*/
-				get_args_1 (f, SYS_EXEC, args);
+				//get_args_1 (f, SYS_EXEC, args);
+				const char *cmd_line = *(const char **)args;
+				args += 4;
+				validate ((const void *)cmd_line);
+
+				f->eax = exec (cmd_line);
 				break;
 			}
 		case SYS_WAIT:
 			{
-				/*
-				if (!check_args (args+4, 1))
-				{
-					exit (-1);
-					break;
-				}
-				int pid = *(int *)(args+4);
-				f->eax = process_wait (pid);
-				*/
-				get_args_1 (f, SYS_WAIT, args);
+				//get_args_1 (f, SYS_WAIT, args);
+				tid_t pid = *(tid_t *)args;
+				args += 4;
+
+				f->eax = wait (pid);
 				break;
 			}
 		case SYS_CREATE:
 			{
-				/*
-				if (!check_args (args+4, 2) || !check_string (*(char **)(args+4)))
-				{
-					exit (-1);
-					break;
-				}
-				char *file = *(char **)(args + 4);
-				unsigned size = *(unsigned *)(args + 8);
-	
-				lock_acquire (&file_lock);
-				bool created = filesys_create (file, size);
-				lock_release (&file_lock);
+				//get_args_2 (f, SYS_CREATE, args);
+				const char *file = *(const char **)args;
+				args += 4;
+				validate ((const void *)file);
+				unsigned initial_size = *(unsigned *)args;
+				args += 4;
 
-				f->eax = created;
-				*/
-				get_args_2 (f, SYS_CREATE, args);
+				f->eax = create (file, initial_size);
 				break;
 			}
 		case SYS_REMOVE:
 			{
-				/*
-				if (!check_args (args + 4, 1) || !check_string (*(char **)(args + 4)))
-				{
-					exit (-1);
-					break;
-				}
-				char *file = *(char **)(args + 4);
+				//get_args_1 (f, SYS_REMOVE, args);
+				const char *file = *(const char **)args;
+				args += 4;
+				validate ((const void *)file);
 
-				lock_acquire (&file_lock);
-				bool removed = filesys_remove (file);
-				lock_release (&file_lock);
-
-				f->eax = removed;
-				*/
-				get_args_1 (f, SYS_REMOVE, args);
+				f->eax = remove (file);
 				break;
 			}
 		case SYS_OPEN:
 			{
-				/*
-				if (!check_args (args + 4, 1) || !check_string (*(char **)(args + 4)))
-				{
-					exit (-1);
-					break;
-				}
-				char *file_name = *(char **)(args + 4);
-	
-				lock_acquire (&file_lock);
-				struct file *file = filesys_open (file_name);
-				lock_release (&file_lock);
+				//get_args_1 (f, SYS_OPEN, args);
+				const char *file = *(const char **)args;
+				args += 4;
+				validate ((const void *)file);
 
-				struct thread *t = thread_current ();
-
-				f->eax = -1;
-				if (file != NULL)
-				{
-					struct fd_element *fd_elem = (struct fd_element*)malloc (sizeof (struct fd_element));
-					t->fd_size += 1;
-					f->eax = t->fd_size;
-					fd_elem->fd = t->fd_size;
-					fd_elem->myfile = file;
-					list_push_back (&t->fd_list, &fd_elem->element);
-				}
-				*/
-				get_args_1 (f, SYS_OPEN, args);
+				f->eax = open (file);
 				break;
 			}
 		case SYS_FILESIZE:
 			{
-				/*
-				if (!check_args (args+4, 1))
-				{
-					exit(-1);
-					break;
-				}
-				int fd = *(int *)(args + 4);
-				struct file *file = get_fd (fd)->myfile;
-				f->eax = -1;
-				if (file != NULL)
-				{
-					lock_acquire (&file_lock);
-					f->eax = file_length (file);
-					lock_release (&file_lock);
-				}
-				*/
-				get_args_1 (f, SYS_FILESIZE, args);
+				//get_args_1 (f, SYS_FILESIZE, args);
+				int fd = *(int *)args;
+				args += 4;
+
+				f->eax = filesize (fd);
 				break;
 			}
 		case SYS_READ:
 			{
-				/*
-				if (!check_args (args + 4, 3))
-				{
-					exit (-1);
-					break;
-				}
-				int fd = *(int *)(args + 4);
-				char *buffer = *(char **)(args + 8);
-				unsigned size = *(unsigned *)(args + 12);
-				if (!check_pointer (buffer) || !check_pointer (buffer + size))
-				{
-					exit (-1);
-					break;
-				}
-
-				int re = -1;
-				if (fd > 0)
-				{
-					struct file *file = get_fd (fd)->myfile;
-					f->eax = -1;
-					if (file != NULL)
-					{
-						lock_acquire (&file_lock);
-						re = file_read (file, buffer, size);
-						lock_release (&file_lock);
-						if (re < (int)size && re != 0)
-							re = -1;
-					}
-				}
-				else
-				{
-					unsigned i;
-					for (i=0; i<size; i++)
-						buffer[i] = input_getc ();
-					f->eax = size;
-				}
-				*/
-				get_args_3 (f, SYS_READ, args);
+				//get_args_3 (f, SYS_READ, args);
+				int fd = *(int *)args;
+				args += 4;
+				void *buffer = *(void **)args;
+				args += 4;
+				unsigned size = *(unsigned *)args;
+				args += 4;
+				validate ((const void *)buffer);
+				f->eax = read (fd, buffer, size);
 				break;
 			}
 		case SYS_WRITE:
 			{
-				/*
-				if (!check_args (args + 4, 3))
-				{
-					exit (-1);
-					break;
-				}
-				int fd = *(int *)(args + 4);
-				char *buffer = *(char **)(args + 8);
-				unsigned size = *(unsigned *)(args + 12);
+				//get_args_3 (f, SYS_WRITE, args);
+				int fd = *(int *)args;
+				args += 4;
+				void *buffer = *(void **)args;
+				args += 4;
+				unsigned size = *(unsigned *)args;
+				args += 4;
+				validate ((const void *)buffer);
+				validate ((const void *)(buffer + size));
 
-				if (!check_pointer (buffer) || !check_pointer (buffer + size))
-				{
-					exit (-1);
-					break;
-				}
-
-				if (fd == 1)
-				{
-					putbuf (buffer, size);
-					f->eax = size;
-				}
-				else
-				{
-					struct file *file = get_fd (fd)->myfile;
-					if (file == NULL)
-					{
-						f->eax = -1;
-					}
-					else
-					{
-						lock_acquire (&file_lock);
-						f->eax = file_write (file, buffer, size);
-						lock_release (&file_lock);
-					}
-				}
-				*/
-				get_args_3 (f, SYS_WRITE, args);
+				f->eax = write (fd, buffer, size);
 				break;
 			}
 		case SYS_SEEK:
 			{
-				/*
-				if (!check_args (args + 4, 1))
-				{
-					exit (-1);
-					break;
-				}
-				int fd = *(int *)(args + 4);
-				unsigned pos = *(unsigned *)(args + 8);
-
-				struct file *file = get_fd (fd)->myfile;
-				if (file != NULL)
-				{
-					lock_acquire (&file_lock);
-					file_seek (file, pos);
-					lock_release (&file_lock);
-				}
-				*/
-				get_args_2 (f, SYS_SEEK, args);
+				//get_args_2 (f, SYS_SEEK, args);
+				int fd = *(int *)args;
+				args += 4;
+				unsigned position = *(unsigned *)args;
+				args += 4;
+				seek (fd, position);
 				break;
 			}
 		case SYS_TELL:
 			{
-				/*
-				if (!check_args (args + 4, 1))
-				{
-					exit (-1);
-					break;
-				}
-				int fd = *(int *)(args + 4);
-				struct file *file = get_fd (fd)->myfile;
-				f->eax = -1;
-				if (file != NULL)
-				{
-					lock_acquire (&file_lock);
-					f->eax = file_tell (file);
-					lock_release (&file_lock);
-				}
-			*/
-				get_args_1 (f, SYS_TELL, args);
+				//get_args_1 (f, SYS_TELL, args);
+				int fd = *(int *)args;
+				args += 4;
+
+				f->eax = tell (fd);
 				break;
 			}
 		case SYS_CLOSE:
 			{
-				/*
-				if (!check_args (args + 4, 1))
-				{
-					exit (-1);
-					break;
-				}
-				int fd = *(int *)(args + 4);
-				struct file *file = get_fd (fd)->myfile;
-				if (file != NULL)
-				{
-					lock_acquire (&file_lock);
-					file_close (file);
-					lock_release (&file_lock);
-				}
-				*/
-				get_args_1 (f, SYS_CLOSE, args);
+				//get_args_1 (f, SYS_CLOSE, args);
+				int fd = *(int *)args;
+				args += 4;
+
+				close (fd);
 				break;
 			}
+		default:
+			exit (-1);
+			break;
 	}
 }
 
@@ -502,28 +256,29 @@ exit (int status)
 	//if (cur ->parent == NULL)
 	//	return;
 
-	struct child_element *child = get_child (cur->tid, &cur->parent->child_list);
+	struct list *child_list = &cur->parent->child_list;
+	struct child_element *child = get_child (cur->tid, child_list);
 	child->exit_status = status;
 	if (status == -1)
 		child->cur_status = WAS_KILLED;
 	else
 		child->cur_status = HAD_EXITED;
 
-	remove_child (cur->tid, &cur->parent->child_list);
-	free_children (&cur->child_list);
+	if (cur->parent != NULL)
+		remove_child (cur->tid, child_list);
+	free_children (child_list);
 	cur->parent = NULL;
 
 	lock_acquire (&file_lock);
 	if (cur->exec_file != NULL)
 	{
-	file_allow_write (cur->exec_file);
-	file_close (cur->exec_file);
+		file_allow_write (cur->exec_file);
+		file_close (cur->exec_file);
 	}
-	close_all (&cur->fd_list);
 	lock_release (&file_lock);
-	
-	sema_up (&cur->sema_wait);
 
+	close_all (&cur->fd_list);
+	sema_up (&cur->sema_wait);
 	thread_exit ();
 }
 
@@ -531,23 +286,43 @@ tid_t
 exec (const char *cmd_line)
 {
 	struct thread* parent = thread_current();
+
 	tid_t pid = -1;
-	struct child_element *child = get_child(pid, &parent -> child_list);
-	sema_down(&child -> real_child -> sema_exec);
 	pid = process_execute(cmd_line);
+	struct child_element *child = get_child(pid, &parent -> child_list);
+
+	sema_down(&child -> real_child -> sema_exec);
+
 	if(!child -> loaded_success)
 		return -1;
 	return pid;
 }
-int wait (tid_t pid)
+int 
+wait (tid_t pid)
 {
-	return process_wait (pid);
+	struct list *child_list = &thread_current ()->child_list;
+	struct child_element *child = get_child (pid, child_list);
+
+	if (child == NULL || child->cur_status == WAS_KILLED)
+		return -1;
+
+	if (child->cur_status == STILL_ALIVE)
+		sema_down (&child->real_child->sema_wait);
+
+	int exit_status = child->exit_status;
+	remove_child (pid, child_list);
+
+	return exit_status;
 }
-bool create (const char *file, unsigned initial_size)
+bool 
+create (const char *file, unsigned initial_size)
 {
+	if (initial_size == 0)//TODO: create-long
+		exit (-1);
 	lock_acquire(&file_lock);
 	bool ret = filesys_create(file, initial_size);
 	lock_release(&file_lock);
+	
 	return ret;
 }
 bool remove (const char *file)
@@ -555,6 +330,7 @@ bool remove (const char *file)
 	lock_acquire(&file_lock);
 	bool ret = filesys_remove(file);
 	lock_release(&file_lock);
+
 	return ret;
 }
 int open (const char *file)
@@ -564,6 +340,7 @@ int open (const char *file)
 	struct thread *cur = thread_current ();
 	struct file * opened_file = filesys_open(file);
 	lock_release(&file_lock);
+
 	if(opened_file != NULL)
 	{
 		cur->fd_size = cur->fd_size + 1;
@@ -656,11 +433,15 @@ void close (int fd)
 {
 	struct fd_element *fd_elem = get_fd(fd);
 	if(fd_elem == NULL)
-		return;
+		exit (-1);//TODO: return ? exit ()?
+		//return;
 	struct file *myfile = fd_elem->myfile;
+
 	lock_acquire(&file_lock);
 	file_close(myfile);
 	lock_release(&file_lock);
+
+	//exit (0);//TODO: for create-normal
 }
 void close_all(struct list *fd_list)
 {

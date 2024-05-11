@@ -62,9 +62,10 @@ process_execute (const char *file_name)
 	}
 
 	/* --- project 3 start --- */
-	/*struct child_element *child = get_child (tid, &thread_current ()->child_list);
+	//TODO: kernel panic error
+	/*
+	struct child_element *child = get_child (tid, &thread_current ()->child_list);
 	sema_down (&child->real_child->sema_wait);
-
 	if (!child->loaded_success)
 		return -1;
 		*/
@@ -89,21 +90,21 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
+  palloc_free_page (file_name);
 	
 	/* --- project 3.3 start --- */
 	struct thread *cur = thread_current ();
-	if (cur->parent != NULL)
+	struct child_element *child = get_child (cur->tid, &cur->parent->child_list);
+	if (!success)
 	{
-		struct child_element *child = get_child (cur->tid, &cur->parent->child_list);
-		child->loaded_success = success;
+		child->loaded_success = false;
+		sema_up (&cur->sema_wait);
+		exit (-1);
 	}
-
-	sema_up (&cur->sema_wait);
 	/* --- project 3 end --- */
+
   /* If load failed, quit. */
-  palloc_free_page (file_name);
-  if (!success)//project 3 
-    thread_exit ();
+  //thread_exit ();
 
 
   /* Start the user process by simulating a return from an
@@ -129,16 +130,30 @@ int
 process_wait (tid_t child_tid UNUSED) 
 {
 	/* --- project 3.3 start --- */
-	struct child_element *child = get_child(child_tid, &thread_current()-> child_list);
+	struct list *child_list = &thread_current ()->child_list;
+	struct child_element *child = get_child(child_tid, child_list);
+
+	if (child == NULL || child->cur_status == WAS_KILLED)
+		return -1;
+	if (child->cur_status == STILL_ALIVE)
+		sema_down (&child->real_child->sema_wait);
+
+	int exit_status = child->exit_status;
+	remove_child (child_tid, child_list);
+	return exit_status;
+	/*
 	if (child -> first_time)
 	{
 		child -> first_time = false;
 		if (child->cur_status == STILL_ALIVE)
 			sema_down (&child->real_child->sema_wait);	
+
+		//TODO: remove child from parent thread's child_list
+		remove_child (child_tid, &thread_current ()->child_list);		
+
 		return child->exit_status;
 	}
-	//remove_child (child_tid, &thread_current ()->child_list);	
-
+	*/
 	/* --- project 3.3 end --- */
 
   return -1;
@@ -171,8 +186,10 @@ process_exit ()
 	close_all(&cur->fd_list);
 	lock_release (&file_lock);
 
-	sema_up(&cur->sema_wait);
 	*/
+	//TODO: solve infinite waiting sema_exec
+	sema_up(&cur->sema_wait);
+	sema_up(&cur->sema_exec);
 	/* --- project 3.3 end --- */
 
   /* Destroy the current process's page directory and switch back
@@ -200,9 +217,9 @@ free_children(struct list *child_list)
 	while(e1!=list_end(child_list))
 	{
 		struct list_elem* next = list_next(e1);
-		struct child_element* c = list_entry(e1, struct child_element, child_elem);
+		struct child_element* child = list_entry(e1, struct child_element, child_elem);
 		list_remove(e1);
-		free(c);
+		free(child);
 		e1 = next;
 	}
 }
@@ -308,21 +325,22 @@ load (const char *file_name, void (**eip) (void), void **esp)
   int i;
 
 	/* --- project 3.2 start --- */
+
 	char *fn_copy;
 	char *save_ptr;
 	fn_copy = malloc (strlen (file_name) + 1);
 	strlcpy(fn_copy, file_name, strlen (file_name) + 1);
 	fn_copy = strtok_r (fn_copy, " ", &save_ptr);
-	/*char *arg; //= strtok_r (fn_copy, " ", &save_ptr);
+
+	char *arg = strtok_r (fn_copy, " ", &save_ptr);
 	char *argv[128];
 	int argc = 0;
-	for (arg = strtok_r (fn_copy, " ", &save_ptr); arg != NULL; arg = strtok_r(NULL, " ", &save_ptr))
+	for (; arg != NULL; arg = strtok_r(NULL, " ", &save_ptr))
 	{
 		argv[argc] = arg;
 		//strlcpy (argv[argc], arg, strlen (arg)+1);
 		argc += 1;
 	}
-	*/
 	/* --- project 3.2 end --- */
 
   /* Allocate and activate page directory. */
@@ -331,7 +349,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
-	//lock_acquire (&file_lock);//project 3
+	lock_acquire (&file_lock);//project 3
 	
   /* Open executable file. */
   file = filesys_open (fn_copy);//project 3 : file_name -> argv[0]
@@ -417,27 +435,22 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (!setup_stack (esp))
     goto done;
 
+	/* --- project 3 start --- */
+	get_stack_args (fn_copy, esp, &save_ptr);
+	file_deny_write (file);
+	/* --- project 3 end --- */
+
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
 
   success = true;
 
-	/* --- project 3 start --- */
-	get_stack_args (fn_copy, esp, &save_ptr);
-	//file_deny_write (file);
-	/* --- project 3 end --- */
-
  done:
 	free(fn_copy);//project 3
   /* We arrive here whether the load is successful or not. */
-	if (!success)//project 3
-	{
-		file_deny_write (file);
-		t->exec_file = file;
-	}
-	else
+	if (!success)
   	file_close (file);
-	//lock_release (&file_lock);//project 3
+	lock_release (&file_lock);//project 3
   return success;
 }
 
