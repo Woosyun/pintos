@@ -253,8 +253,8 @@ wait (tid_t pid)
 bool 
 create (const char *file, unsigned initial_size)
 {
-	if (initial_size == 0)//TODO: create-long
-		exit (-1);
+	//if (initial_size == 0)//TODO: create-long
+	//	exit (-1);
 	lock_acquire(&file_lock);
 	bool ret = filesys_create(file, initial_size);
 	lock_release(&file_lock);
