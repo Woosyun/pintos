@@ -123,12 +123,13 @@ process_wait (tid_t child_tid UNUSED)
 	struct list *child_list = &thread_current ()->child_list;
 	struct child_element *child = get_child(child_tid, child_list);
 
-	if (child == NULL || child->cur_status == WAS_KILLED || !child->first_time)
+	if (child == NULL || child->cur_status == WAS_KILLED || child->cur_status == HAD_EXITED || !child->first_time)
 		return -1;
 	child->first_time = false;
 
 	if (child->cur_status == STILL_ALIVE)
 		sema_down (&child->real_child->sema_wait);
+	//child->cur_status = HAD_EXITED;
 
 	int exit_status = child->exit_status;
 	remove_child (child_tid, child_list);
